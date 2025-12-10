@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control IoT Global - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .glass {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .glow-blue { box-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
+        .glow-green { box-shadow: 0 0 30px rgba(16, 185, 129, 0.5); }
+        .glow-orange { box-shadow: 0 0 30px rgba(251, 146, 60, 0.5); }
+        .glow-red { box-shadow: 0 0 30px rgba(239, 68, 68, 0.5); }
+        .glow-purple { box-shadow: 0 0 40px rgba(168, 85, 247, 0.6); }
+        
+        .status-online {
+            background: linear-gradient(135deg, #10b981, #059669);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .status-offline {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .temperature-bar {
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .switch-toggle {
+            position: relative;
+            width: 60px;
+            height: 32px;
+            background: #475569;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .switch-toggle.active {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+        
+        .switch-slider {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .switch-toggle.active .switch-slider {
+            transform: translateX(28px);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .particle {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: rgba(96, 165, 250, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 10s infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="text-slate-100">
+    
+    <!-- Partículas de fondo -->
+    <div id="particles"></div>
+    
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        
+        <!-- Header -->
+        <header class="glass rounded-3xl p-6 mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                        <i data-lucide="activity" class="w-7 h-7 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-bold gradient-text">IoT Control Global</h1>
+                        <p class="text-sm text-slate-400">Sistema de Monitoreo y Control Remoto</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <!-- Estado de conexión -->
+                    <div id="connectionStatus" class="flex items-center gap-2 px-4 py-2 rounded-full status-offline">
+                        <div class="w-2 h-2 bg-white rounded-full"></div>
+                        <span class="text-sm font-medium text-white">Desconectado</span>
+                    </div>
+                    
+                    <!-- Botón configuración -->
+                    <button onclick="openConfig()" class="glass p-3 rounded-xl hover:bg-slate-700 transition">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Panel de Configuración Rápida -->
+        <div class="glass rounded-2xl p-6 mb-6">
+            <div class="flex flex-col md:flex-row items-center gap-4">
+                <div class="flex items-center gap-3 flex-1">
+                    <div class="bg-orange-500/20 p-3 rounded-xl">
+                        <i data-lucide="database" class="w-6 h-6 text-orange-400"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-sm">Configuración Firebase</h3>
+                        <p class="text-xs text-slate-400">Credenciales de conexión</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 w-full md:w-auto">
+                    <div>
+                        <label class="text-xs text-slate-400 mb-1 block">API Key</label>
+                        <input type="text" id="quickApiKey" 
+                               placeholder="AIzaSy..."
+                               class="w-full bg-slate-800/50 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-slate-600">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 mb-1 block">Database URL</label>
+                        <input type="text" id="quickDbUrl" 
+                               placeholder="https://proyecto.firebaseio.com"
+                               class="w-full bg-slate-800/50 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-slate-600">
+                    </div>
+                </div>
+                
+                <button onclick="quickConnect()" 
+                        class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold px-6 py-2 rounded-xl transition flex items-center gap-2">
+                    <i data-lucide="plug" class="w-4 h-4"></i>
+                    Conectar
+                </button>
+            </div>
+        </div>
+
+        <!-- Grid Principal -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            
+            <!-- Panel de Temperatura Promedio -->
+            <div class="lg:col-span-2 glass rounded-3xl p-8 glow-purple">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-purple-400">Temperatura Global</h2>
+                        <p class="text-sm text-slate-400 font-mono mt-1">/temperaturas/promedio</p>
+                    </div>
+                    <div class="bg-purple-500/20 p-4 rounded-2xl">
+                        <i data-lucide="thermometer" class="w-10 h-10 text-purple-400"></i>
+                    </div>
+                </div>
+                
+                <div class="flex items-end gap-6">
+                    <div class="flex-1">
+                        <div class="relative h-32 bg-slate-700/50 rounded-2xl overflow-hidden">
+                            <div id="tempGeneralBar" class="temperature-bar absolute bottom-0 left-0 right-0 bg-gradient-to-t from-purple-600 via-pink-500 to-orange-400" style="height: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-500 mt-2">
+                            <span>0°C</span>
+                            <span>25°C</span>
+                            <span>50°C</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div id="tempGeneral" class="text-7xl font-black text-purple-400">--</div>
+                        <div class="text-2xl text-slate-400 font-light">°Celsius</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel de Estadísticas -->
+            <div class="glass rounded-3xl p-6">
+                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5 text-cyan-400"></i>
+                    Estadísticas
+                </h3>
+                <div class="space-y-4">
+                    <div class="bg-slate-800/50 rounded-xl p-4">
+                        <div class="text-xs text-slate-400 mb-1">Sensores Activos</div>
+                        <div id="activeSensors" class="text-3xl font-bold text-cyan-400">0/4</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-4">
+                        <div class="text-xs text-slate-400 mb-1">Última Actualización</div>
+                        <div id="lastUpdate" class="text-sm font-mono text-slate-300">--:--:--</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-4">
+                        <div class="text-xs text-slate-400 mb-1">Temp. Máxima</div>
+                        <div id="maxTemp" class="text-2xl font-bold text-orange-400">--°C</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-4">
+                        <div class="text-xs text-slate-400 mb-1">Temp. Mínima</div>
+                        <div id="minTemp" class="text-2xl font-bold text-blue-400">--°C</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid de Sensores de Temperatura -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            
+            <!-- Sensor 1 -->
+            <div class="glass rounded-2xl p-6 hover:glow-blue transition-all duration-300">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-blue-400">Sensor DS1</h3>
+                        <p class="text-xs text-slate-500 font-mono">/temperaturas/sensor1</p>
+                    </div>
+                    <div class="bg-blue-500/20 p-2 rounded-lg">
+                        <i data-lucide="thermometer" class="w-6 h-6 text-blue-400"></i>
+                    </div>
+                </div>
+                <div id="temp1" class="text-4xl font-black text-blue-400 mb-3">--°C</div>
+                <div class="relative h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div id="temp1Bar" class="temperature-bar h-full bg-gradient-to-r from-blue-500 to-cyan-400" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Sensor 2 -->
+            <div class="glass rounded-2xl p-6 hover:glow-green transition-all duration-300">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-green-400">Sensor DS2</h3>
+                        <p class="text-xs text-slate-500 font-mono">/temperaturas/sensor2</p>
+                    </div>
+                    <div class="bg-green-500/20 p-2 rounded-lg">
+                        <i data-lucide="thermometer" class="w-6 h-6 text-green-400"></i>
+                    </div>
+                </div>
+                <div id="temp2" class="text-4xl font-black text-green-400 mb-3">--°C</div>
+                <div class="relative h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div id="temp2Bar" class="temperature-bar h-full bg-gradient-to-r from-green-500 to-emerald-400" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Sensor 3 -->
+            <div class="glass rounded-2xl p-6 hover:glow-orange transition-all duration-300">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-orange-400">Sensor DS3</h3>
+                        <p class="text-xs text-slate-500 font-mono">/temperaturas/sensor3</p>
+                    </div>
+                    <div class="bg-orange-500/20 p-2 rounded-lg">
+                        <i data-lucide="thermometer" class="w-6 h-6 text-orange-400"></i>
+                    </div>
+                </div>
+                <div id="temp3" class="text-4xl font-black text-orange-400 mb-3">--°C</div>
+                <div class="relative h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div id="temp3Bar" class="temperature-bar h-full bg-gradient-to-r from-orange-500 to-amber-400" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Sensor 4 -->
+            <div class="glass rounded-2xl p-6 hover:glow-red transition-all duration-300">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-red-400">Sensor DS4</h3>
+                        <p class="text-xs text-slate-500 font-mono">/temperaturas/sensor4</p>
+                    </div>
+                    <div class="bg-red-500/20 p-2 rounded-lg">
+                        <i data-lucide="thermometer" class="w-6 h-6 text-red-400"></i>
+                    </div>
+                </div>
+                <div id="temp4" class="text-4xl font-black text-red-400 mb-3">--°C</div>
+                <div class="relative h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div id="temp4Bar" class="temperature-bar h-full bg-gradient-to-r from-red-500 to-rose-400" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Control de Dispositivos -->
+        <div class="glass rounded-3xl p-8">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <i data-lucide="toggle-left" class="w-7 h-7 text-cyan-400"></i>
+                Control de Dispositivos
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Dispositivo 1 -->
+                <div class="bg-slate-800/50 rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-bold text-lg">Sala Principal</h3>
+                            <p class="text-xs text-slate-500">/control/sala</p>
+                        </div>
+                        <div class="switch-toggle" id="switch1" onclick="toggleDevice('sala', 'switch1')">
+                            <div class="switch-slider"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="lightbulb" class="w-5 h-5 text-slate-500" id="icon1"></i>
+                        <span class="text-sm text-slate-400" id="status1">Apagado</span>
+                    </div>
+                </div>
+
+                <!-- Dispositivo 2 -->
+                <div class="bg-slate-800/50 rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-bold text-lg">Laboratorio</h3>
+                            <p class="text-xs text-slate-500">/control/laboratorio</p>
+                        </div>
+                        <div class="switch-toggle" id="switch2" onclick="toggleDevice('laboratorio', 'switch2')">
+                            <div class="switch-slider"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="cpu" class="w-5 h-5 text-slate-500" id="icon2"></i>
+                        <span class="text-sm text-slate-400" id="status2">Apagado</span>
+                    </div>
+                </div>
+
+                <!-- Dispositivo 3 -->
+                <div class="bg-slate-800/50 rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-bold text-lg">Ventilación</h3>
+                            <p class="text-xs text-slate-500">/control/ventilacion</p>
+                        </div>
+                        <div class="switch-toggle" id="switch3" onclick="toggleDevice('ventilacion', 'switch3')">
+                            <div class="switch-slider"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="fan" class="w-5 h-5 text-slate-500" id="icon3"></i>
+                        <span class="text-sm text-slate-400" id="status3">Apagado</span>
+                    </div>
+                </div>
+
+                <!-- Dispositivo 4 -->
+                <div class="bg-slate-800/50 rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-bold text-lg">Sistema</h3>
+                            <p class="text-xs text-slate-500">/control/sistema</p>
+                        </div>
+                        <div class="switch-toggle" id="switch4" onclick="toggleDevice('sistema', 'switch4')">
+                            <div class="switch-slider"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="power" class="w-5 h-5 text-slate-500" id="icon4"></i>
+                        <span class="text-sm text-slate-400" id="status4">Apagado</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-8 text-slate-500 text-sm font-mono">
+            <p>IST Vida Nueva - Sistema IoT de Investigación © 2025</p>
+        </footer>
+    </div>
+
+    <!-- Modal de Configuración Firebase -->
+    <div id="configModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeConfig()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="glass rounded-3xl p-8 w-full max-w-lg relative animate-[slideUp_0.3s_ease]">
+                <button onclick="closeConfig()" class="absolute top-6 right-6 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+                
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="bg-gradient-to-br from-orange-500 to-pink-500 p-3 rounded-2xl">
+                        <i data-lucide="database" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold">Configuración Firebase</h2>
+                        <p class="text-sm text-slate-400">Conecta tu base de datos en tiempo real</p>
